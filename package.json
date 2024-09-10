@@ -2,6 +2,7 @@
   "name": "ts-react-playground",
   "version": "0.1.0",
   "private": true,
+  "homepage": ".",
   "dependencies": {
     "@ant-design/cssinjs": "^1.21.1",
     "@ant-design/icons": "^5.4.0",
