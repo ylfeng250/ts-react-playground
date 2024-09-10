@@ -6,12 +6,15 @@ import React, {
   useCallback,
 } from "react";
 import { createRoot } from "react-dom/client";
-import Editor from "@monaco-editor/react";
+import Editor from "react-simple-code-editor";
+import { highlight, languages } from "prismjs";
 import * as Babel from "@babel/standalone";
 import { twind, cssom, observe, defineConfig } from "@twind/core";
 import presetTailwind from "@twind/preset-tailwind";
 import * as antd from "antd";
 import * as icons from "@ant-design/icons";
+import "prismjs/components/prism-javascript";
+import "prismjs/themes/prism.css";
 import { StyleProvider } from "@ant-design/cssinjs";
 import CustomConfigProvider from "./CustomConfigProvider";
 import transformImports from "../lib/bablePlugins/transformImports";
@@ -143,11 +146,19 @@ const Playground: React.FC = () => {
   return (
     <div className="playground">
       <Editor
-        height="300px"
-        defaultLanguage="typescript"
-        defaultValue={code}
-        onChange={(value) => {
-          debouncedCompileAndRender(value || "");
+        readOnly
+        value={code}
+        onValueChange={(code) => {
+          setCode(code);
+          debouncedCompileAndRender(code);
+        }}
+        highlight={(code) =>
+          highlight(code, languages.javascript, "javascript")
+        }
+        padding={10}
+        style={{
+          fontFamily: '"Fira code", "Fira Mono", monospace',
+          fontSize: 12,
         }}
       />
       <div className="preview">
