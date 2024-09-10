@@ -1,4 +1,10 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, {
+  useState,
+  useEffect,
+  useRef,
+  useLayoutEffect,
+  useCallback,
+} from "react";
 import { createRoot } from "react-dom/client";
 import Editor from "@monaco-editor/react";
 import * as Babel from "@babel/standalone";
@@ -9,6 +15,7 @@ import * as icons from "@ant-design/icons";
 import { StyleProvider } from "@ant-design/cssinjs";
 import CustomConfigProvider from "./CustomConfigProvider";
 import transformImports from "../lib/bablePlugins/transformImports";
+import { debounce } from "lodash";
 
 const defaultCode = `
 import { Button, DatePicker, Tooltip } from 'antd';
@@ -25,8 +32,6 @@ const MyComponent: React.FC = () => {
     </div>
   );
 };
-
-MyComponent;
 `;
 
 const Playground: React.FC = () => {
@@ -35,69 +40,9 @@ const Playground: React.FC = () => {
     useState<React.ComponentType | null>(null);
   const previewRef = useRef<HTMLDivElement>(null);
   const rootRef = useRef<any>(null);
-  const [shadowContainer, setShadowContainer] = useState<any>();
+  const shadowContainerRef = useRef<any>(null);
 
-  useEffect(() => {
-    compileAndRender(code);
-  }, [code]);
-
-  useEffect(() => {
-    if (previewRef.current && CompiledComponent) {
-      let shadow = previewRef.current.shadowRoot;
-      if (!shadow) {
-        shadow = previewRef.current.attachShadow({ mode: "open" });
-      }
-      setShadowContainer(shadow);
-
-      shadow.innerHTML = "";
-
-      const rootElement = document.createElement("div");
-      shadow.appendChild(rootElement);
-
-      // 为 Shadow DOM 创建一个新的 Twind 实例
-      const sheet = cssom(new CSSStyleSheet());
-      const config = defineConfig({
-        presets: [presetTailwind()],
-        preflight: false, // 禁用 Tailwind 的预设样式
-        theme: {
-          extend: {},
-        },
-        rules: [],
-      });
-      const tw = twind(config, sheet);
-
-      // 观察 DOM 变化并应用样式
-      const cleanupObserver = observe(tw, shadow);
-
-      // 使用 createRoot 替代 ReactDOM.render
-      if (!rootRef.current) {
-        rootRef.current = createRoot(rootElement);
-      }
-
-      rootRef.current.render(
-        <StyleProvider container={shadow}>
-          <CustomConfigProvider>
-            <CompiledComponent />
-          </CustomConfigProvider>
-        </StyleProvider>
-      );
-
-      // 将生成的样式添加到 Shadow DOM
-      if (sheet.target instanceof CSSStyleSheet) {
-        shadow.adoptedStyleSheets = [sheet.target];
-      }
-
-      // 清理函数
-      return () => {
-        cleanupObserver(rootRef.current);
-        if (rootRef.current) {
-          rootRef.current.unmount();
-        }
-      };
-    }
-  }, [CompiledComponent]);
-
-  const compileAndRender = (sourceCode: string) => {
+  const compileAndRender = useCallback((sourceCode: string) => {
     try {
       const transformedCode = Babel.transform(sourceCode, {
         filename: "virtual-file.tsx",
@@ -127,7 +72,73 @@ const Playground: React.FC = () => {
       console.error("编译错误:", error);
       setCompiledComponent(null);
     }
-  };
+  }, []);
+
+  const debouncedCompileAndRender = useCallback(
+    debounce((value: string) => {
+      console.log(value);
+      compileAndRender(value || "");
+    }, 500),
+    [compileAndRender]
+  );
+
+  useEffect(() => {
+    debouncedCompileAndRender(code);
+  }, []);
+
+  useLayoutEffect(() => {
+    if (previewRef.current && CompiledComponent) {
+      let shadow = previewRef.current.shadowRoot;
+      if (!shadow) {
+        shadow = previewRef.current.attachShadow({ mode: "open" });
+      }
+      shadowContainerRef.current = shadow;
+
+      shadow.innerHTML = "";
+
+      const rootElement = document.createElement("div");
+      shadow.appendChild(rootElement);
+
+      // 为 Shadow DOM 创建一个新的 Twind 实例
+      const sheet = cssom(new CSSStyleSheet());
+      const config = defineConfig({
+        presets: [presetTailwind()],
+        preflight: false, // 禁用 Tailwind 的预设样式
+        theme: {
+          extend: {},
+        },
+        rules: [],
+      });
+      const tw = twind(config, sheet);
+
+      // 观察 DOM 变化并应用样式
+      const cleanupObserver = observe(tw, shadow);
+
+      // 使用 createRoot 替代 ReactDOM.render
+      rootRef.current = createRoot(rootElement);
+
+      rootRef.current.render(
+        <StyleProvider container={shadow}>
+          <CustomConfigProvider>
+            <CompiledComponent />
+          </CustomConfigProvider>
+        </StyleProvider>
+      );
+
+      // 将生成的样式添加到 Shadow DOM
+      if (sheet.target instanceof CSSStyleSheet) {
+        shadow.adoptedStyleSheets = [sheet.target];
+      }
+
+      // 清理函数
+      return () => {
+        cleanupObserver(rootRef.current);
+        if (rootRef.current) {
+          rootRef.current.unmount();
+        }
+      };
+    }
+  }, [CompiledComponent]);
 
   return (
     <div className="playground">
@@ -135,13 +146,15 @@ const Playground: React.FC = () => {
         height="300px"
         defaultLanguage="typescript"
         defaultValue={code}
-        onChange={(value) => setCode(value || "")}
+        onChange={(value) => {
+          debouncedCompileAndRender(value || "");
+        }}
       />
       <div className="preview">
         <h3>预览:</h3>
         <div ref={previewRef}>
-          {shadowContainer && (
-            <StyleProvider container={shadowContainer}>
+          {shadowContainerRef.current && (
+            <StyleProvider container={shadowContainerRef.current}>
               <CustomConfigProvider>
                 {CompiledComponent ? null : <p>编译错误,请检查代码。</p>}
               </CustomConfigProvider>
