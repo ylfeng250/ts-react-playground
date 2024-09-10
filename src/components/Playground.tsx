@@ -24,7 +24,7 @@ const defaultCode = `
 import { Button, DatePicker, Tooltip } from 'antd';
 import { SmileOutlined } from '@ant-design/icons';
 
-const MyComponent: React.FC = () => {
+const Component: React.FC = () => {
   return (
     <div className="p-4 max-w-md mx-auto bg-white rounded-xl shadow-md overflow-hidden md:max-w-2xl">
       <h2 className="text-xl font-bold mb-4">Ant Design 组件示例</h2>
@@ -39,6 +39,7 @@ const MyComponent: React.FC = () => {
 
 const Playground: React.FC = () => {
   const [code, setCode] = useState<string>(defaultCode);
+  const [compileErrorInfo, setCompileErrorInfo] = useState<any>();
   const [CompiledComponent, setCompiledComponent] =
     useState<React.ComponentType | null>(null);
   const previewRef = useRef<HTMLDivElement>(null);
@@ -65,21 +66,22 @@ const Playground: React.FC = () => {
         "icons",
         `
         ${transformedCode}
-        return MyComponent;
+        return Component;
       `
       );
 
       const Component = executeCode(React, antd, icons);
       setCompiledComponent(() => Component);
-    } catch (error) {
-      console.error("编译错误:", error);
+      setCompileErrorInfo(null);
+    } catch (error: any) {
+      console.error("编译错误:", error.message);
+      setCompileErrorInfo(error.message);
       setCompiledComponent(null);
     }
   }, []);
 
   const debouncedCompileAndRender = useCallback(
     debounce((value: string) => {
-      console.log(value);
       compileAndRender(value || "");
     }, 500),
     [compileAndRender]
@@ -146,7 +148,6 @@ const Playground: React.FC = () => {
   return (
     <div className="playground">
       <Editor
-        readOnly
         value={code}
         onValueChange={(code) => {
           setCode(code);
@@ -163,15 +164,16 @@ const Playground: React.FC = () => {
       />
       <div className="preview">
         <h3>预览:</h3>
-        <div ref={previewRef}>
-          {shadowContainerRef.current && (
-            <StyleProvider container={shadowContainerRef.current}>
-              <CustomConfigProvider>
-                {CompiledComponent ? null : <p>编译错误,请检查代码。</p>}
-              </CustomConfigProvider>
-            </StyleProvider>
-          )}
-        </div>
+        <div ref={previewRef}></div>
+        {shadowContainerRef.current && (
+          <StyleProvider container={shadowContainerRef.current}>
+            <CustomConfigProvider>
+              {!compileErrorInfo ? null : (
+                <p>编译错误,请检查代码。Error:{compileErrorInfo}</p>
+              )}
+            </CustomConfigProvider>
+          </StyleProvider>
+        )}
       </div>
     </div>
   );
