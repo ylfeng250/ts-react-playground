@@ -7,19 +7,21 @@ import presetTailwind from "@twind/preset-tailwind";
 import * as antd from "antd";
 import * as icons from "@ant-design/icons";
 import { StyleProvider } from "@ant-design/cssinjs";
+import CustomConfigProvider from "./CustomConfigProvider";
+import transformImports from "../lib/bablePlugins/transformImports";
 
 const defaultCode = `
-const MyComponent: React.FC = () => {
-  const { Button, DatePicker, Tooltip } = antd;
-  const { SmileOutlined } = icons;
+import { Button, DatePicker, Tooltip } from 'antd';
+import { SmileOutlined } from '@ant-design/icons';
 
+const MyComponent: React.FC = () => {
   return (
     <div className="p-4 max-w-md mx-auto bg-white rounded-xl shadow-md overflow-hidden md:max-w-2xl">
       <h2 className="text-xl font-bold mb-4">Ant Design 组件示例</h2>
-      <Tooltip title="这是一个提示" getPopupContainer={(triggerNode) => triggerNode.parentNode}>
+      <Tooltip title="这是一个提示">
         <Button type="primary" icon={<SmileOutlined />} className="bg-blue-500">悬停我</Button>
       </Tooltip>
-      <DatePicker className="mt-4 border-green-500" getPopupContainer={(triggerNode) => triggerNode.parentNode} />
+      <DatePicker className="mt-4 border-green-500" />
     </div>
   );
 };
@@ -58,13 +60,9 @@ const Playground: React.FC = () => {
         presets: [presetTailwind()],
         preflight: false, // 禁用 Tailwind 的预设样式
         theme: {
-          extend: {
-            // 可以在这里添加自定义主题配置
-          },
+          extend: {},
         },
-        rules: [
-          // 可以在这里添加自定义规则
-        ],
+        rules: [],
       });
       const tw = twind(config, sheet);
 
@@ -78,7 +76,9 @@ const Playground: React.FC = () => {
 
       rootRef.current.render(
         <StyleProvider container={shadow}>
-          <CompiledComponent />
+          <CustomConfigProvider>
+            <CompiledComponent />
+          </CustomConfigProvider>
         </StyleProvider>
       );
 
@@ -108,6 +108,7 @@ const Playground: React.FC = () => {
           ],
           Babel.availablePresets["react"],
         ],
+        plugins: [transformImports],
       }).code;
 
       const executeCode = new Function(
@@ -141,7 +142,9 @@ const Playground: React.FC = () => {
         <div ref={previewRef}>
           {shadowContainer && (
             <StyleProvider container={shadowContainer}>
-              {CompiledComponent ? null : <p>编译错误,请检查代码。</p>}
+              <CustomConfigProvider>
+                {CompiledComponent ? null : <p>编译错误,请检查代码。</p>}
+              </CustomConfigProvider>
             </StyleProvider>
           )}
         </div>

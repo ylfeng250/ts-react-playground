@@ -65,7 +65,7 @@ MyComponent;
 
 欢迎提交 issues 和 pull requests 来改进这个项目!
 
-## TODO
+## 可以继续考虑的事情
 
 1. 改进导入语法
    - 问题：当前无法使用 `import` 语句，导致代码与传统 React 组件写法不一致。
